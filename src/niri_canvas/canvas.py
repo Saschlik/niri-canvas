@@ -302,13 +302,13 @@ class MonitorCanvas(Gtk.DrawingArea):
         cr.restore()
 
         if not self.monitors:
-            cr.save()
             layout = PangoCairo.create_layout(cr)
-            layout.set_text("Warte auf Monitor-Erkennung von Niri...", -1)
-            cr.set_source_rgba(1.0, 1.0, 1.0, 0.5)
-            cr.move_to(width / 2.0 - 130, height / 2.0 - 10)
+            layout.set_text("Waiting for display detection from Niri...", -1)
+            font_desc = Pango.FontDescription.from_string("Sans 14")
+            layout.set_font_description(font_desc)
+            cr.set_source_rgba(0.7, 0.7, 0.7, 1.0)
+            cr.move_to(20, 30)
             PangoCairo.show_layout(cr, layout)
-            cr.restore()
             return
 
         scale, off_x, off_y = self.get_transform_metrics(width, height)
@@ -427,9 +427,9 @@ class MonitorCanvas(Gtk.DrawingArea):
             if is_prim:
                 font_badge = Pango.FontDescription.from_string("Sans Bold 7")
                 pango_layout.set_font_description(font_badge)
-                pango_layout.set_text("★ HAUPT", -1)
+                pango_layout.set_text("★ PRIMARY", -1)
                 cr.set_source_rgb(1.0, 0.80, 0.20)  # Amber gold
-                cr.move_to(bx + max(28, bw - 52), by + 10)
+                cr.move_to(bx + max(28, bw - 60), by + 10)
                 PangoCairo.show_layout(cr, pango_layout)
 
             # Port Name

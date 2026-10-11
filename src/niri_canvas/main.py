@@ -26,7 +26,7 @@ VERSION = "1.0.0"
 def run_cli_status():
     monitors = get_monitors()
     if not monitors:
-        print("Keine aktiven Monitore in Niri gefunden.")
+        print("No active monitors found in Niri.")
         return 1
 
     print("\n" + "=" * 95)
@@ -37,7 +37,7 @@ def run_cli_status():
     print(header)
     print("-" * 95)
     for m in monitors:
-        prim = "★ JA" if m.get("is_primary") else "NEIN"
+        prim = "★ YES" if m.get("is_primary") else "NO"
         port = m.get("port", "")
         model = m.get("model", "")[:18]
         mode = m.get("mode_label", m.get("mode", ""))[:20]
@@ -52,7 +52,7 @@ def run_cli_status():
 def run_cli_align(config_path=None):
     monitors = get_monitors()
     if not monitors:
-        print("Keine Monitore zum Anordnen gefunden.")
+        print("No monitors found to align.")
         return 1
     aligned = auto_align_monitors(monitors)
     success, msg = save_monitors_layout(aligned, config_path)
@@ -62,7 +62,7 @@ def run_cli_align(config_path=None):
 
 def run_cli_identify():
     identify_monitors()
-    print("Identifizierungs-Meldungen an alle Displays gesendet.")
+    print("Identification notifications dispatched to all displays.")
     return 0
 
 
@@ -87,13 +87,13 @@ def main():
         description="Niri Canvas — Visual Multi-Monitor Manager for Niri Wayland Compositor"
     )
     parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {VERSION}")
-    parser.add_argument("-c", "--config", type=str, help="Pfad zu einer benutzerdefinierten KDL-Konfigurationsdatei")
+    parser.add_argument("-c", "--config", type=str, help="Path to a custom KDL configuration file")
 
-    subparsers = parser.add_subparsers(dest="command", help="Optionale CLI-Befehle")
+    subparsers = parser.add_subparsers(dest="command", help="Optional CLI subcommands")
 
-    subparsers.add_parser("status", help="Zeigt aktuelle Monitore und Koordinaten in der Konsole an")
-    subparsers.add_parser("align", help="Richtet alle Monitore automatisch lückenlos nebeneinander aus")
-    subparsers.add_parser("identify", help="Sendet visuelle Identifikations-Overlays an alle Bildschirme")
+    subparsers.add_parser("status", help="Print connected displays and layout coordinates to stdout")
+    subparsers.add_parser("align", help="Automatically arrange all displays horizontally side-by-side")
+    subparsers.add_parser("identify", help="Display visual identification overlays on all monitors")
 
     args, unknown = parser.parse_known_args()
 

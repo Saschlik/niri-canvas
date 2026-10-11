@@ -56,24 +56,24 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
 
         # Left Header: Refresh
         self.refresh_btn = Gtk.Button.new_from_icon_name("view-refresh-symbolic")
-        self.refresh_btn.set_tooltip_text("Hardware neu einlesen & Änderungen verwerfen")
+        self.refresh_btn.set_tooltip_text("Reload hardware & discard changes")
         self.refresh_btn.connect("clicked", self.on_refresh_clicked)
         header.pack_start(self.refresh_btn)
 
         # Right Header: Apply (suggested-action), Align, Identify
-        self.apply_btn = Gtk.Button(label="Anwenden")
-        self.apply_btn.set_tooltip_text("Layout in KDL speichern & Niri live aktualisieren")
+        self.apply_btn = Gtk.Button(label="Apply")
+        self.apply_btn.set_tooltip_text("Save layout to KDL & reload Niri live")
         self.apply_btn.add_css_class("suggested-action")
         self.apply_btn.connect("clicked", self.on_apply_clicked)
         header.pack_end(self.apply_btn)
 
         self.align_btn = Gtk.Button.new_from_icon_name("object-flip-horizontal-symbolic")
-        self.align_btn.set_tooltip_text("Monitore automatisch lückenlos anordnen")
+        self.align_btn.set_tooltip_text("Auto-align monitors side-by-side")
         self.align_btn.connect("clicked", self.on_align_clicked)
         header.pack_end(self.align_btn)
 
         self.identify_btn = Gtk.Button.new_from_icon_name("dialog-information-symbolic")
-        self.identify_btn.set_tooltip_text("Displays identifizieren (Nummern & Ports anzeigen)")
+        self.identify_btn.set_tooltip_text("Identify displays (show OSD popups)")
         self.identify_btn.connect("clicked", self.on_identify_clicked)
         header.pack_end(self.identify_btn)
 
@@ -101,8 +101,8 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
 
         # ── 1. Interactive Canvas Group ───────────────────────────────────────
         canvas_group = Adw.PreferencesGroup()
-        canvas_group.set_title("Räumliche Anordnung")
-        canvas_group.set_description("Monitore per Drag & Drop verschieben. Kanten docken magnetisch aneinander an.")
+        canvas_group.set_title("Spatial Arrangement")
+        canvas_group.set_description("Drag & drop displays to arrange. Edges snap magnetically to prevent gaps.")
 
         canvas_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         self.canvas = MonitorCanvas(
@@ -115,12 +115,12 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
         sub_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         sub_bar.set_margin_top(4)
 
-        self.selection_label = Gtk.Label(label="Wähle einen Monitor auf dem Canvas...", xalign=0)
+        self.selection_label = Gtk.Label(label="Select a display on the canvas...", xalign=0)
         self.selection_label.set_hexpand(True)
         sub_bar.append(self.selection_label)
 
-        self.primary_btn = Gtk.Button(label="★ Als Hauptmonitor")
-        self.primary_btn.set_tooltip_text("Ausgewählten Monitor als Hauptbildschirm markieren")
+        self.primary_btn = Gtk.Button(label="★ Set as Primary")
+        self.primary_btn.set_tooltip_text("Set selected display as primary monitor")
         self.primary_btn.connect("clicked", self.on_make_primary_clicked)
         sub_bar.append(self.primary_btn)
 
@@ -130,46 +130,46 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
 
         # ── 2. Simple Controls Group ──────────────────────────────────────────
         self.simple_group = Adw.PreferencesGroup()
-        self.simple_group.set_title("Einfache Einstellungen")
-        self.simple_group.set_description("Wichtigste Anzeige-Optionen für den ausgewählten Bildschirm.")
+        self.simple_group.set_title("Display Settings")
+        self.simple_group.set_description("Essential display options for the selected screen.")
 
         # Auflösung (Sauber gruppiert nach gängigen Auflösungen)
         self.res_row = Adw.ComboRow()
-        self.res_row.set_title("Auflösung")
-        self.res_row.set_subtitle("Physische Display-Auflösung")
+        self.res_row.set_title("Resolution")
+        self.res_row.set_subtitle("Physical display resolution")
         self.res_row.connect("notify::selected", self.on_simple_res_selected)
         self.simple_group.add(self.res_row)
 
         # Skalierung
         self.scale_options = ["100%", "125%", "150%", "175%", "200%"]
         self.scale_row = Adw.ComboRow()
-        self.scale_row.set_title("Skalierung")
-        self.scale_row.set_subtitle("Vergrößert Fenster und Schriftarten für schärfere Lesbarkeit")
+        self.scale_row.set_title("Scaling")
+        self.scale_row.set_subtitle("Scale window contents and text for sharper readability")
         self.scale_row.set_model(Gtk.StringList.new(self.scale_options))
         self.scale_row.connect("notify::selected", self.on_scale_selected)
         self.simple_group.add(self.scale_row)
 
         # Ausrichtung (Einfach: Querformat vs. Hochformat)
-        self.orient_options = ["Querformat (Normal 0°)", "Hochformat (Rechts 90°)", "Hochformat (Links 270°)"]
+        self.orient_options = ["Landscape (Normal 0°)", "Portrait (Right 90°)", "Portrait (Left 270°)"]
         self.orient_values = ["Normal", "90", "270"]
         self.orient_row = Adw.ComboRow()
-        self.orient_row.set_title("Ausrichtung")
-        self.orient_row.set_subtitle("Querformat für Standard-Monitore oder Hochformat für Code/Dokumente")
+        self.orient_row.set_title("Orientation")
+        self.orient_row.set_subtitle("Landscape for standard monitors or portrait for code and documents")
         self.orient_row.set_model(Gtk.StringList.new(self.orient_options))
         self.orient_row.connect("notify::selected", self.on_orient_selected)
         self.simple_group.add(self.orient_row)
 
         # Hauptmonitor-Schalter
         self.primary_switch = Adw.SwitchRow()
-        self.primary_switch.set_title("Hauptbildschirm")
-        self.primary_switch.set_subtitle("Standard-Display für Benachrichtigungen und neue Arbeitsflächen")
+        self.primary_switch.set_title("Primary Display")
+        self.primary_switch.set_subtitle("Default display for notifications and new workspaces")
         self.primary_switch.connect("notify::active", self.on_primary_switch_toggled)
         self.simple_group.add(self.primary_switch)
 
         simple_content.append(self.simple_group)
 
         # Add Tab 1 to ViewStack
-        page_simple = self.view_stack.add_titled(scrolled_simple, "simple", "Einfach")
+        page_simple = self.view_stack.add_titled(scrolled_simple, "simple", "Simple")
         page_simple.set_icon_name("video-display-symbolic")
 
         # ══════════════════════════════════════════════════════════════════════
@@ -193,12 +193,12 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
 
         # ── 1. Exakte Geometrie & Positionierung ──────────────────────────────
         geo_group = Adw.PreferencesGroup()
-        geo_group.set_title("Pixel-genaue Platzierung")
-        geo_group.set_description("Direkte Koordinaten-Steuerung im logischen Wayland-Desktop-Raum.")
+        geo_group.set_title("Pixel-Perfect Coordinates")
+        geo_group.set_description("Direct coordinate placement in logical Wayland desktop space.")
 
         pos_row = Adw.ActionRow()
-        pos_row.set_title("Logische Koordinaten (X / Y)")
-        pos_row.set_subtitle("Manuelle Feinjustierung verhindert unabsichtliche Lücken oder Kanten-Sprünge")
+        pos_row.set_title("Logical Position (X / Y)")
+        pos_row.set_subtitle("Manual fine-tuning prevents gaps or cursor trapping")
 
         coords_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         coords_box.set_valign(Gtk.Align.CENTER)
@@ -219,11 +219,11 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
         geo_group.add(pos_row)
 
         # Erweiterte Drehung (inklusive 180° Überkopf)
-        self.adv_tf_options = ["Normal (0°)", "90° (Rechts)", "180° (Überkopf)", "270° (Links)"]
+        self.adv_tf_options = ["Normal (0°)", "90° (Right)", "180° (Inverted)", "270° (Left)"]
         self.adv_tf_values = ["Normal", "90", "180", "270"]
         self.adv_tf_row = Adw.ComboRow()
-        self.adv_tf_row.set_title("Erweiterte Rotation & Invertierung")
-        self.adv_tf_row.set_subtitle("Ermöglicht auch 180° Überkopf-Montage für Monitorarme")
+        self.adv_tf_row.set_title("Advanced Rotation & Invert")
+        self.adv_tf_row.set_subtitle("Supports 180° ceiling or custom arm mount orientation")
         self.adv_tf_row.set_model(Gtk.StringList.new(self.adv_tf_options))
         self.adv_tf_row.connect("notify::selected", self.on_adv_tf_selected)
         geo_group.add(self.adv_tf_row)
@@ -232,18 +232,18 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
 
         # ── 2. Detaillierte Hardware-Modi & Hertz ─────────────────────────────
         rate_group = Adw.PreferencesGroup()
-        rate_group.set_title("Exakte Bildwiederholraten & Timings")
-        rate_group.set_description("Alle nativen Hardware-Modi inklusive Dezimal-Frequenzen.")
+        rate_group.set_title("Refresh Rates & Timings")
+        rate_group.set_description("Native hardware video modes including exact fractional refresh rates.")
 
         self.exact_mode_row = Adw.ComboRow()
-        self.exact_mode_row.set_title("Hardware-Timing Modus")
-        self.exact_mode_row.set_subtitle("Exakter Niri Mode-String mit Millihertz-Genauigkeit")
+        self.exact_mode_row.set_title("Hardware Video Mode")
+        self.exact_mode_row.set_subtitle("Exact Niri mode string with millihertz precision")
         self.exact_mode_row.connect("notify::selected", self.on_exact_mode_selected)
         rate_group.add(self.exact_mode_row)
 
         # Hardware Info Row
         self.hw_info_row = Adw.ActionRow()
-        self.hw_info_row.set_title("Display-Hardware")
+        self.hw_info_row.set_title("Hardware Details")
         self.hw_info_badge = Gtk.Label(label="--", css_classes=["caption", "dim-label"])
         self.hw_info_row.add_suffix(self.hw_info_badge)
         rate_group.add(self.hw_info_row)
@@ -252,14 +252,14 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
 
         # ── 3. Niri KDL-Konfiguration & Quelldatei ─────────────────────────────
         kdl_group = Adw.PreferencesGroup()
-        kdl_group.set_title("Deklarative Niri KDL-Konfiguration")
+        kdl_group.set_title("Declarative Niri KDL Configuration")
         target_path = find_config_file(self.custom_config)
-        kdl_group.set_description(f"Ziel-Datei: {target_path}")
+        kdl_group.set_description(f"Target file: {target_path}")
 
         open_row = Adw.ActionRow()
-        open_row.set_title("Konfigurationsdatei im Texteditor öffnen")
+        open_row.set_title("Open configuration file in editor")
         open_row.set_subtitle(target_path)
-        open_btn = Gtk.Button(label="Öffnen")
+        open_btn = Gtk.Button(label="Open")
         open_btn.set_valign(Gtk.Align.CENTER)
         open_btn.connect("clicked", lambda b: run_cmd(f"xdg-open {target_path} &"))
         open_row.add_suffix(open_btn)
@@ -267,8 +267,8 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
 
         # Live KDL Code Preview Frame
         preview_group = Adw.PreferencesGroup()
-        preview_group.set_title("Generierte KDL-Vorschau")
-        preview_group.set_description("Aktuelle Monitor-Konfiguration in Niri KDL-Syntax")
+        preview_group.set_title("Live KDL Preview")
+        preview_group.set_description("Declarative monitor configuration formatted in Niri KDL syntax")
         self.kdl_preview_view = Gtk.TextView()
         self.kdl_preview_view.set_editable(False)
         self.kdl_preview_view.set_monospace(True)
@@ -285,7 +285,7 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
         adv_content.append(preview_group)
 
         # Add Tab 2 to ViewStack
-        page_adv = self.view_stack.add_titled(scrolled_adv, "advanced", "Erweitert")
+        page_adv = self.view_stack.add_titled(scrolled_adv, "advanced", "Advanced")
         page_adv.set_icon_name("preferences-other-symbolic")
 
         # Initial Load
@@ -312,22 +312,22 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
 
     def on_refresh_clicked(self, btn):
         self.load_from_system()
-        self.show_toast("Hardware-Status neu eingelesen.")
+        self.show_toast("Hardware reloaded from Niri.")
 
     def on_identify_clicked(self, btn):
         identify_monitors(self.canvas.monitors)
-        self.show_toast("Displays werden identifiziert (OSD-Popups gesendet).")
+        self.show_toast("Identifying displays (OSD overlays dispatched).")
 
     def on_align_clicked(self, btn):
         self.canvas.auto_align()
         self._update_kdl_preview()
-        self.show_toast("Monitore automatisch nebeneinander angeordnet.")
+        self.show_toast("Displays aligned horizontally.")
 
     def on_make_primary_clicked(self, btn):
         if self.canvas.selected_port:
             self.canvas.set_primary_monitor(self.canvas.selected_port)
             self._update_kdl_preview()
-            self.show_toast(f"{self.canvas.selected_port} als Hauptmonitor festgelegt.")
+            self.show_toast(f"Set {self.canvas.selected_port} as primary display.")
 
     def on_primary_switch_toggled(self, row, param):
         if self._updating:
@@ -365,10 +365,10 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
         w = m.get("width", 0)
         h = m.get("height", 0)
         is_prim = m.get("is_primary", False)
-        prim_badge = " ★ [Hauptmonitor]" if is_prim else ""
+        prim_badge = " ★ [Primary]" if is_prim else ""
 
         self.selection_label.set_markup(
-            f"Ausgewählt: <b>{port}</b> ({model}){prim_badge} • Position: <b>X={x}, Y={y}</b> ({w}×{h})"
+            f"Selected: <b>{port}</b> ({model}){prim_badge} • Position: <b>X={x}, Y={y}</b> ({w}×{h})"
         )
         self.primary_btn.set_sensitive(not is_prim)
         self.primary_switch.set_active(is_prim)

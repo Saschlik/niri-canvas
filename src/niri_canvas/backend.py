@@ -96,7 +96,7 @@ def ensure_include_in_niri_config(monitors_kdl_path: str) -> Optional[str]:
                 f.write(f'// Niri Wayland Compositor Configuration\ninclude "{rel_path}"\n')
             return None
         except Exception as e:
-            return f"Konnte {niri_config} nicht anlegen: {e}"
+            return f"Could not create {niri_config}: {e}"
 
     # Case 2: Config is a read-only symlink to the Nix store (e.g. Home-Manager)
     if os.path.islink(niri_config) and "/nix/store" in os.path.realpath(niri_config):
@@ -112,7 +112,7 @@ def ensure_include_in_niri_config(monitors_kdl_path: str) -> Optional[str]:
                 return None
         except Exception:
             pass
-        return "Hinweis: Deine config.kdl ist schreibgeschützt (Nix-Store). Trage bitte include \"monitors.kdl\" in deiner Nix-Konfiguration ein."
+        return "Notice: Your config.kdl is read-only (Nix store). Please add include \"monitors.kdl\" to your Nix configuration."
 
     # Case 3: Regular writable config.kdl
     try:
@@ -137,7 +137,7 @@ def ensure_include_in_niri_config(monitors_kdl_path: str) -> Optional[str]:
             f.write(include_header + content)
         return None
     except Exception as e:
-        return f"Hinweis: Konnte include nicht automatisch in config.kdl eintragen ({e}). Bitte manuell include \"monitors.kdl\" ergänzen."
+        return f"Notice: Could not automatically inject include into config.kdl ({e}). Please manually add include \"monitors.kdl\"."
 
 
 def get_monitors() -> List[Dict[str, Any]]:
@@ -276,7 +276,7 @@ def save_monitors_layout(monitors_data: List[Dict[str, Any]], custom_path: Optio
     Returns (success, message).
     """
     if not monitors_data:
-        return False, "Keine Monitore zum Speichern vorhanden."
+        return False, "No monitors to save."
 
     target_file = find_config_file(custom_path)
     os.makedirs(os.path.dirname(target_file), exist_ok=True)
@@ -385,7 +385,7 @@ def save_monitors_layout(monitors_data: List[Dict[str, Any]], custom_path: Optio
 
     # Hot reload Niri
     run_cmd("niri msg action load-config-file")
-    msg = f"Erfolgreich in {target_file} gespeichert und Niri neu geladen!"
+    msg = f"Successfully saved to {target_file} and reloaded Niri!"
     if include_notice:
         msg += f"\n{include_notice}"
     return True, msg
