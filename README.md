@@ -33,7 +33,9 @@ No more manually calculating coordinates in `config.kdl` or wrestling with broke
   Monitors are rendered as realistic displays with stands, outer bezels, glossy screens, and circled display numbers ($1, 2, 3\dots$).
 * 📑 **Simple & Advanced Views (Tabs)**  
   * **Simple**: Visual Drag & Drop, standard resolutions, scaling (100%–200%), orientation (Normal / 90° / 270°), and primary monitor toggle.
-  * **Advanced**: Sub-pixel logical coordinates ($X, Y$), millihertz-exact refresh rates, 180° ceiling/arm mount transforms, hardware panel serials, and a live declarative KDL code preview.
+  * **Advanced**: Sub-pixel logical coordinates ($X, Y$), millihertz-exact refresh rates, 180° ceiling/arm mount transforms, font & subpixel rendering geometry, hardware panel serials, and a live declarative KDL code preview.
+* 🔤 **Font & Subpixel Anti-Aliasing Control**  
+  Eliminate colored text fringing across mixed landscape and rotated portrait displays! Easily toggle between Grayscale (neutral / macOS-style curves), Horizontal RGB, Horizontal BGR (OLED), Vertical RGB (90° portrait), and Vertical BGR (270° portrait) with live GSettings & Fontconfig synchronization.
 * 🧲 **Magnetic Edge-Snapping**  
   Displays snap seamlessly to each other's edges within a 75-pixel threshold, illuminated by neon-cyan alignment guidelines. No accidental dead zones, gaps, or mouse trapping.
 * 🪄 **One-Click Auto-Align**  

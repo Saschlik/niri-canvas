@@ -20,7 +20,9 @@ from .backend import (
     auto_align_monitors,
     identify_monitors,
     find_config_file,
-    run_cmd
+    run_cmd,
+    get_font_rendering_settings,
+    set_font_rendering_settings
 )
 
 
@@ -250,7 +252,53 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
 
         adv_content.append(rate_group)
 
-        # ── 3. Niri KDL-Konfiguration & Quelldatei ─────────────────────────────
+        # ── 3. Typography & Subpixel Anti-Aliasing ───────────────────────────
+        font_group = Adw.PreferencesGroup()
+        font_group.set_title("Font & Subpixel Anti-Aliasing")
+        font_group.set_description(
+            "Matches subpixel rendering to your physical LCD panel layout to eliminate colored font fringing."
+        )
+
+        self.subpixel_options = [
+            "Grayscale (Clean / Neutral — Best for Mixed & Rotated Setups)",
+            "Horizontal RGB (Standard LCD Panels)",
+            "Horizontal BGR (Inverted / OLED Panels)",
+            "Vertical RGB / VRGB (Rotated 90° Portrait)",
+            "Vertical BGR / VBGR (Rotated 270° Portrait)"
+        ]
+        self.subpixel_values = ["grayscale", "rgb", "bgr", "vrgb", "vbgr"]
+        self.subpixel_row = Adw.ComboRow()
+        self.subpixel_row.set_title("Subpixel Geometry")
+        self.subpixel_row.set_subtitle("Grayscale eliminates color fringing completely across all portrait/landscape screens")
+        self.subpixel_row.set_model(Gtk.StringList.new(self.subpixel_options))
+        self.subpixel_row.connect("notify::selected", self.on_font_settings_changed)
+        font_group.add(self.subpixel_row)
+
+        self.hinting_options = [
+            "None (Smooth / Natural macOS-Style Curves)",
+            "Slight (Subtle snap to pixel grid — Recommended)",
+            "Medium (Clear vertical stems)",
+            "Full (Maximum contrast / Crisp Windows-Style)"
+        ]
+        self.hinting_values = ["none", "slight", "medium", "full"]
+        self.hinting_row = Adw.ComboRow()
+        self.hinting_row.set_title("Font Hinting")
+        self.hinting_row.set_subtitle("Controls how strictly font glyphs snap to screen pixel boundaries")
+        self.hinting_row.set_model(Gtk.StringList.new(self.hinting_options))
+        self.hinting_row.connect("notify::selected", self.on_font_settings_changed)
+        font_group.add(self.hinting_row)
+
+        # Typography Preview Row
+        font_preview_row = Adw.ActionRow()
+        font_preview_row.set_title("Live Typography Sample")
+        font_preview_row.set_subtitle("The quick brown fox jumps over the lazy dog. 1234567890")
+        sample_badge = Gtk.Label(label="Aa Bb Gg 123", css_classes=["title-4", "accent"])
+        font_preview_row.add_suffix(sample_badge)
+        font_group.add(font_preview_row)
+
+        adv_content.append(font_group)
+
+        # ── 4. Niri KDL-Konfiguration & Quelldatei ─────────────────────────────
         kdl_group = Adw.PreferencesGroup()
         kdl_group.set_title("Declarative Niri KDL Configuration")
         target_path = find_config_file(self.custom_config)
@@ -301,6 +349,16 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
         self._updating = True
         self.monitors = get_monitors()
         self.canvas.set_monitors(self.monitors, force=True)
+
+        # Populate font rendering settings
+        font_cfg = get_font_rendering_settings()
+        sub_val = font_cfg.get("subpixel", "rgb")
+        hint_val = font_cfg.get("hinting", "slight")
+        if sub_val in self.subpixel_values:
+            self.subpixel_row.set_selected(self.subpixel_values.index(sub_val))
+        if hint_val in self.hinting_values:
+            self.hinting_row.set_selected(self.hinting_values.index(hint_val))
+
         self._updating = False
 
         if self.canvas.selected_port:
@@ -309,6 +367,19 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
             self.on_canvas_selection_changed(self.monitors[0]["port"])
 
         self._update_kdl_preview()
+
+    def on_font_settings_changed(self, row, param):
+        if self._updating:
+            return
+        sub_idx = self.subpixel_row.get_selected()
+        hint_idx = self.hinting_row.get_selected()
+        if 0 <= sub_idx < len(self.subpixel_values) and 0 <= hint_idx < len(self.hinting_values):
+            sub_val = self.subpixel_values[sub_idx]
+            hint_val = self.hinting_values[hint_idx]
+            success, msg = set_font_rendering_settings(sub_val, hint_val)
+            if success:
+                label_short = self.subpixel_options[sub_idx].split(" (")[0]
+                self.show_toast(f"Font Rendering: {label_short} applied.")
 
     def on_refresh_clicked(self, btn):
         self.load_from_system()
