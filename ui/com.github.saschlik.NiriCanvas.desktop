@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Niri Canvas
+GenericName=Display & Monitor Manager
+Comment=Visual multi-monitor manager for Niri Wayland compositor
+Exec=niri-canvas
+Icon=com.github.saschlik.NiriCanvas
+Terminal=false
+Type=Application
+Categories=Settings;HardwareSettings;DesktopSettings;GTK;
+StartupNotify=true
+Keywords=niri;display;monitor;screen;layout;canvas;wayland;resolution;refresh;

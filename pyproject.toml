@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "niri-canvas"
+version = "1.0.0"
+authors = [
+  { name = "Sascha (Saschlik)", email = "saschlik@users.noreply.github.com" },
+]
+description = "Interactive visual multi-monitor display manager for Niri Wayland compositor"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Environment :: X11 Applications :: GTK",
+    "Topic :: Desktop Environment",
+]
+dependencies = [
+    "pygobject",
+]
+
+[project.scripts]
+niri-canvas = "niri_canvas.main:main"
+niri-canvas-cli = "niri_canvas.main:main"
+
+[project.urls]
+"Homepage" = "https://github.com/saschlik/niri-canvas"
+"Bug Tracker" = "https://github.com/saschlik/niri-canvas/issues"
