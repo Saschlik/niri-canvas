@@ -32,8 +32,8 @@ No more manually calculating coordinates in `config.kdl` or wrestling with broke
 * 🖥️ **Interactive 2D Hardware Canvas**  
   Monitors are rendered as realistic displays with stands, outer bezels, glossy screens, and circled display numbers ($1, 2, 3\dots$).
 * 📑 **Simple & Advanced Views (Tabs)**  
-  * **Einfach (Simple)**: Visual Drag & Drop, standard resolutions, scaling (100%–200%), orientation (Normal / 90° / 270°), and primary monitor toggle.
-  * **Erweitert (Advanced)**: Sub-pixel logical coordinates ($X, Y$), millihertz-exact refresh rates, 180° ceiling/arm mount transforms, hardware panel serials, and a live declarative KDL code preview.
+  * **Simple**: Visual Drag & Drop, standard resolutions, scaling (100%–200%), orientation (Normal / 90° / 270°), and primary monitor toggle.
+  * **Advanced**: Sub-pixel logical coordinates ($X, Y$), millihertz-exact refresh rates, 180° ceiling/arm mount transforms, hardware panel serials, and a live declarative KDL code preview.
 * 🧲 **Magnetic Edge-Snapping**  
   Displays snap seamlessly to each other's edges within a 75-pixel threshold, illuminated by neon-cyan alignment guidelines. No accidental dead zones, gaps, or mouse trapping.
 * 🪄 **One-Click Auto-Align**  
@@ -151,10 +151,10 @@ niri-canvas -c ~/.config/niri/my-monitors.kdl
 ===============================================================================================
 PORT       PRIMARY  MODEL                RESOLUTION             SCALE    ROT      POSITION (X,Y) 
 -----------------------------------------------------------------------------------------------
-DP-1       ★ JA     DELL U2412M          1920×1200 @ 60Hz       100%     270      0, 0           
-DVI-D-1    NEIN     DELL U2412M          1920×1200 @ 60Hz       100%     90       1200, 0        
-HDMI-A-1   NEIN     27G1G4               1920×1080 @ 144Hz      100%     Normal   2400, 420      
-DP-2       NEIN     DELL U2412M          1920×1200 @ 60Hz       100%     Normal   4320, 360      
+DP-1       ★ YES    DELL U2412M          1920×1200 @ 60Hz       100%     270      0, 0           
+DVI-D-1    NO       DELL U2412M          1920×1200 @ 60Hz       100%     90       1200, 0        
+HDMI-A-1   NO       27G1G4               1920×1080 @ 144Hz      100%     Normal   2400, 420      
+DP-2       NO       DELL U2412M          1920×1200 @ 60Hz       100%     Normal   4320, 360      
 ===============================================================================================
 ```
 
