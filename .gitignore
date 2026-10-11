@@ -8,3 +8,6 @@ result-*
 dist/
 build/
 *.egg-info/
+assets/*crop.png
+assets/*dvi.png
+assets/balonix-settings*

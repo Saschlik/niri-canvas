@@ -15,6 +15,12 @@
 
 ---
 
+<div align="center">
+  <img src="assets/niri-canvas-hdmi.png" width="880" alt="Niri Canvas Screenshot" style="border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);" />
+</div>
+
+---
+
 **Niri Canvas** brings an intuitive, modern GNOME / macOS style multi-monitor arrangement experience to the **Niri** scrollable-tiling Wayland compositor.
 
 No more manually calculating coordinates in `config.kdl` or wrestling with broken temporary `wlr-randr` workarounds. **Niri Canvas** visually previews your hardware, snaps screens together magnetistically, writes clean declarative KDL, and applies your layout instantly with zero compositor flicker.
@@ -25,20 +31,17 @@ No more manually calculating coordinates in `config.kdl` or wrestling with broke
 
 * 🖥️ **Interactive 2D Hardware Canvas**  
   Monitors are rendered as realistic displays with stands, outer bezels, glossy screens, and circled display numbers ($1, 2, 3\dots$).
+* 📑 **Simple & Advanced Views (Tabs)**  
+  * **Einfach (Simple)**: Visual Drag & Drop, standard resolutions, scaling (100%–200%), orientation (Normal / 90° / 270°), and primary monitor toggle.
+  * **Erweitert (Advanced)**: Sub-pixel logical coordinates ($X, Y$), millihertz-exact refresh rates, 180° ceiling/arm mount transforms, hardware panel serials, and a live declarative KDL code preview.
 * 🧲 **Magnetic Edge-Snapping**  
   Displays snap seamlessly to each other's edges within a 75-pixel threshold, illuminated by neon-cyan alignment guidelines. No accidental dead zones, gaps, or mouse trapping.
 * 🪄 **One-Click Auto-Align**  
   Automatically packs all connected displays side-by-side from left to right with zero gaps.
 * 💡 **Display Identification**  
   Flashes on-screen overlay notifications on every connected display showing its assigned number, port, model, and active resolution.
-* ⚙️ **Per-Monitor Inspector**  
-  * **Resolution & Refresh Rate**: Select from native hardware modes with human-friendly labels (e.g. `1920×1080 @ 144Hz`).
-  * **Orientation & Transform**: Rotate displays ($0^\circ$, $90^\circ$, $180^\circ$, $270^\circ$) with instant live aspect-ratio updates on the canvas.
-  * **Scaling**: Adjust fractional scaling ($100\%$, $125\%$, $150\%$, $175\%$, $200\%$).
-  * **Primary Display**: Toggle primary monitor flag with a single click.
-  * **Pixel-Perfect Fine Tuning**: Manual $X$ and $Y$ coordinate inputs for exact positioning.
-* ⚡ **Declarative Niri Engine**  
-  Directly reads compositor state via `niri msg -j outputs`, formats clean KDL blocks, creates automatic `.bak` backups, and performs live reload via `niri msg action load-config-file`.
+* ⚡ **Non-Destructive Declarative KDL Engine**  
+  Keeps your personal `config.kdl` safe! Writes clean output blocks to `~/.config/niri/monitors.kdl` and safely references it with `include "monitors.kdl"`. Works on any Linux distribution (NixOS, Arch, Fedora, Debian).
 * 💻 **Headless CLI Included**  
   Run `niri-canvas status`, `niri-canvas align`, or `niri-canvas identify` directly from your shell or scripts.
 
