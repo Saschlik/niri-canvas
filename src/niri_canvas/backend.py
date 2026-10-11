@@ -73,22 +73,48 @@ def find_config_file(custom_path: Optional[str] = None) -> str:
     return niri_monitors_kdl
 
 
-def ensure_include_in_niri_config(monitors_kdl_path: str):
+def ensure_include_in_niri_config(monitors_kdl_path: str) -> Optional[str]:
     """
     Ensure that ~/.config/niri/config.kdl includes the monitors KDL file.
     Safely injects `include "monitors.kdl"` if missing, with automatic backup.
+    Returns an optional warning message if config.kdl is immutable (e.g. Nix store symlink).
     """
     home = os.path.expanduser("~")
-    niri_config = os.path.join(home, ".config", "niri", "config.kdl")
-    if not os.path.exists(niri_config):
-        return
+    niri_dir = os.path.join(home, ".config", "niri")
+    niri_config = os.path.join(niri_dir, "config.kdl")
 
-    niri_dir = os.path.dirname(niri_config)
     try:
         rel_path = os.path.relpath(monitors_kdl_path, niri_dir)
     except ValueError:
         rel_path = monitors_kdl_path
 
+    # Case 1: Fresh install where ~/.config/niri/config.kdl does not exist yet
+    if not os.path.exists(niri_config):
+        try:
+            os.makedirs(niri_dir, exist_ok=True)
+            with open(niri_config, "w", encoding="utf-8") as f:
+                f.write(f'// Niri Wayland Compositor Configuration\ninclude "{rel_path}"\n')
+            return None
+        except Exception as e:
+            return f"Konnte {niri_config} nicht anlegen: {e}"
+
+    # Case 2: Config is a read-only symlink to the Nix store (e.g. Home-Manager)
+    if os.path.islink(niri_config) and "/nix/store" in os.path.realpath(niri_config):
+        try:
+            with open(niri_config, "r", encoding="utf-8") as f:
+                content = f.read()
+            if (
+                f'include "{rel_path}"' in content
+                or 'include "monitors.kdl"' in content
+                or 'include "source/monitors.kdl"' in content
+                or 'include "outputs.kdl"' in content
+            ):
+                return None
+        except Exception:
+            pass
+        return "Hinweis: Deine config.kdl ist schreibgeschützt (Nix-Store). Trage bitte include \"monitors.kdl\" in deiner Nix-Konfiguration ein."
+
+    # Case 3: Regular writable config.kdl
     try:
         with open(niri_config, "r", encoding="utf-8") as f:
             content = f.read()
@@ -100,7 +126,7 @@ def ensure_include_in_niri_config(monitors_kdl_path: str):
             or 'include "source/monitors.kdl"' in content
             or 'include "outputs.kdl"' in content
         ):
-            return
+            return None
 
         # Backup config.kdl before modifying
         shutil.copyfile(niri_config, niri_config + ".bak")
@@ -109,8 +135,9 @@ def ensure_include_in_niri_config(monitors_kdl_path: str):
         include_header = f'// Automatically included by Niri Canvas\ninclude "{rel_path}"\n\n'
         with open(niri_config, "w", encoding="utf-8") as f:
             f.write(include_header + content)
+        return None
     except Exception as e:
-        print(f"Warning: Could not inject include into config.kdl: {e}", file=sys.stderr)
+        return f"Hinweis: Konnte include nicht automatisch in config.kdl eintragen ({e}). Bitte manuell include \"monitors.kdl\" ergänzen."
 
 
 def get_monitors() -> List[Dict[str, Any]]:
@@ -314,7 +341,7 @@ def save_monitors_layout(monitors_data: List[Dict[str, Any]], custom_path: Optio
         return False, f"Fehler beim Schreiben von {target_file}: {e}"
 
     # Ensure main config.kdl includes this file (critical for non-Balonix distros)
-    ensure_include_in_niri_config(target_file)
+    include_notice = ensure_include_in_niri_config(target_file)
 
     # BalonixOS integration: also update settings/monitors.nix if present
     home = os.path.expanduser("~")
@@ -358,7 +385,10 @@ def save_monitors_layout(monitors_data: List[Dict[str, Any]], custom_path: Optio
 
     # Hot reload Niri
     run_cmd("niri msg action load-config-file")
-    return True, f"Erfolgreich in {target_file} gespeichert und Niri neu geladen!"
+    msg = f"Erfolgreich in {target_file} gespeichert und Niri neu geladen!"
+    if include_notice:
+        msg += f"\n{include_notice}"
+    return True, msg
 
 
 def identify_monitors(monitors_data: Optional[List[Dict[str, Any]]] = None):
