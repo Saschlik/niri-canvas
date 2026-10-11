@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "niri-canvas"
 version = "1.0.0"
 authors = [
-  { name = "Sascha (Saschlik)", email = "saschlik@users.noreply.github.com" },
+  { name = "Sascha (Saschlik)", email = "sebalo.aleksander@googlemail.com" },
 ]
 description = "Interactive visual multi-monitor display manager for Niri Wayland compositor"
 readme = "README.md"

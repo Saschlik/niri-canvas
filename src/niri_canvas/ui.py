@@ -1,10 +1,11 @@
 """
 Libadwaita User Interface for Niri Canvas.
 Provides a modern GNOME desktop experience with clear separation between
-'Einfach' (Simple / Visual Layout) and 'Erweitert' (Advanced / Hardware & KDL).
+'Simple' (Visual Layout) and 'Advanced' (Hardware & KDL).
 """
 import json
 import os
+import subprocess
 import sys
 from typing import Dict, List, Optional, Any
 
@@ -20,9 +21,10 @@ from .backend import (
     auto_align_monitors,
     identify_monitors,
     find_config_file,
-    run_cmd,
     get_font_rendering_settings,
-    set_font_rendering_settings
+    set_font_rendering_settings,
+    normalize_kdl_transform,
+    is_rotated_90_or_270,
 )
 
 
@@ -83,7 +85,7 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
         main_box.append(self.view_stack)
 
         # ══════════════════════════════════════════════════════════════════════
-        # TAB 1: EINFACH (Simple / Visual Arrangement & Basic Options)
+        # TAB 1: SIMPLE (Visual Arrangement & Basic Options)
         # ══════════════════════════════════════════════════════════════════════
         scrolled_simple = Gtk.ScrolledWindow()
         scrolled_simple.set_vexpand(True)
@@ -135,14 +137,14 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
         self.simple_group.set_title("Display Settings")
         self.simple_group.set_description("Essential display options for the selected screen.")
 
-        # Auflösung (Sauber gruppiert nach gängigen Auflösungen)
+        # Resolution (grouped cleanly by common physical resolutions)
         self.res_row = Adw.ComboRow()
         self.res_row.set_title("Resolution")
         self.res_row.set_subtitle("Physical display resolution")
         self.res_row.connect("notify::selected", self.on_simple_res_selected)
         self.simple_group.add(self.res_row)
 
-        # Skalierung
+        # Scaling
         self.scale_options = ["100%", "125%", "150%", "175%", "200%"]
         self.scale_row = Adw.ComboRow()
         self.scale_row.set_title("Scaling")
@@ -151,7 +153,7 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
         self.scale_row.connect("notify::selected", self.on_scale_selected)
         self.simple_group.add(self.scale_row)
 
-        # Ausrichtung (Einfach: Querformat vs. Hochformat)
+        # Orientation (Landscape vs. Portrait)
         self.orient_options = ["Landscape (Normal 0°)", "Portrait (Right 90°)", "Portrait (Left 270°)"]
         self.orient_values = ["Normal", "90", "270"]
         self.orient_row = Adw.ComboRow()
@@ -161,7 +163,7 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
         self.orient_row.connect("notify::selected", self.on_orient_selected)
         self.simple_group.add(self.orient_row)
 
-        # Hauptmonitor-Schalter
+        # Primary display toggle
         self.primary_switch = Adw.SwitchRow()
         self.primary_switch.set_title("Primary Display")
         self.primary_switch.set_subtitle("Default display for notifications and new workspaces")
@@ -175,7 +177,7 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
         page_simple.set_icon_name("video-display-symbolic")
 
         # ══════════════════════════════════════════════════════════════════════
-        # TAB 2: ERWEITERT (Advanced / Precise Coordinates, Hertz & KDL)
+        # TAB 2: ADVANCED (Precise Coordinates, Hertz & KDL)
         # ══════════════════════════════════════════════════════════════════════
         scrolled_adv = Gtk.ScrolledWindow()
         scrolled_adv.set_vexpand(True)
@@ -193,7 +195,7 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
         adv_content.set_margin_end(16)
         clamp_adv.set_child(adv_content)
 
-        # ── 1. Exakte Geometrie & Positionierung ──────────────────────────────
+        # ── 1. Exact Geometry & Positioning ───────────────────────────────────
         geo_group = Adw.PreferencesGroup()
         geo_group.set_title("Pixel-Perfect Coordinates")
         geo_group.set_description("Direct coordinate placement in logical Wayland desktop space.")
@@ -220,7 +222,7 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
         pos_row.add_suffix(coords_box)
         geo_group.add(pos_row)
 
-        # Erweiterte Drehung (inklusive 180° Überkopf)
+        # Advanced rotation (including 180° inverted)
         self.adv_tf_options = ["Normal (0°)", "90° (Right)", "180° (Inverted)", "270° (Left)"]
         self.adv_tf_values = ["Normal", "90", "180", "270"]
         self.adv_tf_row = Adw.ComboRow()
@@ -232,7 +234,7 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
 
         adv_content.append(geo_group)
 
-        # ── 2. Detaillierte Hardware-Modi & Hertz ─────────────────────────────
+        # ── 2. Hardware Video Modes & Refresh Rates ───────────────────────────
         rate_group = Adw.PreferencesGroup()
         rate_group.set_title("Refresh Rates & Timings")
         rate_group.set_description("Native hardware video modes including exact fractional refresh rates.")
@@ -298,7 +300,7 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
 
         adv_content.append(font_group)
 
-        # ── 4. Niri KDL-Konfiguration & Quelldatei ─────────────────────────────
+        # ── 4. Niri KDL Configuration & Target File ───────────────────────────
         kdl_group = Adw.PreferencesGroup()
         kdl_group.set_title("Declarative Niri KDL Configuration")
         target_path = find_config_file(self.custom_config)
@@ -309,7 +311,14 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
         open_row.set_subtitle(target_path)
         open_btn = Gtk.Button(label="Open")
         open_btn.set_valign(Gtk.Align.CENTER)
-        open_btn.connect("clicked", lambda b: run_cmd(f"xdg-open {target_path} &"))
+        open_btn.connect(
+            "clicked",
+            lambda b: subprocess.Popen(
+                ["xdg-open", target_path],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            ),
+        )
         open_row.add_suffix(open_btn)
         kdl_group.add(open_row)
 
@@ -650,8 +659,8 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
         pw = m.get("phys_width", 1920)
         ph = m.get("phys_height", 1080)
         sc = float(m.get("scale", 1.0) or 1.0)
-        tf = str(m.get("transform", "Normal")).lower()
-        if tf in ["90", "270"]:
+        tf = str(m.get("transform", "Normal"))
+        if is_rotated_90_or_270(tf):
             m["width"] = int(round(ph / sc))
             m["height"] = int(round(pw / sc))
         else:
@@ -667,9 +676,9 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
             mode = m.get("mode")
             if mode and mode != "--":
                 lines.append(f'    mode "{mode}"')
-            tf = str(m.get("transform", "Normal")).strip()
-            if tf.lower() not in ["normal", "0", ""]:
-                lines.append(f'    transform "{tf}"')
+            tf_kdl = normalize_kdl_transform(str(m.get("transform", "Normal")))
+            if tf_kdl != "normal":
+                lines.append(f'    transform "{tf_kdl}"')
             scale = m.get("scale", 1.0)
             try:
                 scale_f = float(scale)

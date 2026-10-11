@@ -7,7 +7,17 @@ import os
 import sys
 import re
 
-# Auto-detect system typelib paths on NixOS if not already in environment
+script_dir = os.path.dirname(os.path.realpath(__file__))
+repo_dir = os.path.abspath(os.path.join(script_dir, ".."))
+for cand in [
+    os.path.join(repo_dir, "src"),
+    os.path.join(repo_dir, "lib/niri-canvas"),
+    "/usr/local/lib/niri-canvas",
+    "/usr/lib/niri-canvas",
+]:
+    if os.path.isdir(cand) and cand not in sys.path:
+        sys.path.insert(0, cand)
+
 if "GI_TYPELIB_PATH" not in os.environ:
     wrapper_path = "/run/current-system/sw/bin/balonix-settings"
     if os.path.exists(wrapper_path):
@@ -28,12 +38,6 @@ if "GI_TYPELIB_PATH" not in os.environ:
                 os.environ["XDG_DATA_DIRS"] = m_xdg.group(1) + ":" + os.environ.get("XDG_DATA_DIRS", "/usr/share")
         except Exception:
             pass
-
-script_dir = os.path.dirname(os.path.realpath(__file__))
-repo_dir = os.path.abspath(os.path.join(script_dir, ".."))
-src_dir = os.path.join(repo_dir, "src")
-if src_dir not in sys.path:
-    sys.path.insert(0, src_dir)
 
 from niri_canvas.main import main
 

@@ -5,16 +5,51 @@ Safe for both BalonixOS and generic Linux distributions (Arch, Fedora, Ubuntu, D
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Union, Any
 
 
-def run_cmd(cmd: str) -> str:
-    """Execute a shell command and return trimmed output."""
+NIRI_TRANSFORM_MAP = {
+    "normal": "normal",
+    "0": "normal",
+    "90": "90",
+    "180": "180",
+    "270": "270",
+    "flipped": "flipped",
+    "flipped90": "flipped-90",
+    "flipped-90": "flipped-90",
+    "flipped180": "flipped-180",
+    "flipped-180": "flipped-180",
+    "flipped270": "flipped-270",
+    "flipped-270": "flipped-270",
+}
+
+
+def normalize_kdl_transform(tf: str) -> str:
+    """Normalize a Niri IPC transform string to valid Niri KDL syntax."""
+    key = str(tf or "Normal").strip().lower()
+    return NIRI_TRANSFORM_MAP.get(key, "normal")
+
+
+def is_rotated_90_or_270(tf: str) -> bool:
+    """Return True if transform rotates aspect ratio by 90 or 270 degrees."""
+    return normalize_kdl_transform(tf) in ("90", "270", "flipped-90", "flipped-270")
+
+
+def run_cmd(cmd: Union[List[str], str]) -> str:
+    """Execute a command safely without shell=True and return trimmed stdout."""
     try:
-        res = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        args = shlex.split(cmd) if isinstance(cmd, str) else list(cmd)
+        res = subprocess.run(
+            args,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=5,
+        )
         return res.stdout.strip()
     except Exception:
         return ""
@@ -26,10 +61,10 @@ def find_config_file(custom_path: Optional[str] = None) -> str:
     Always returns a dedicated monitor configuration file (never overwrites main config.kdl).
     Order of preference:
     1. Custom path if provided
-    2. ~/balonixOS/settings/monitors.kdl (if Balonix environment)
-    3. ~/.config/niri/source/monitors.kdl (if modular structure exists)
-    4. ~/.config/niri/monitors.kdl (if already exists)
-    5. Custom include target extracted from ~/.config/niri/config.kdl
+    2. ~/.config/niri/source/monitors.kdl (resolved via realpath if symlink)
+    3. ~/.config/niri/monitors.kdl (if already exists)
+    4. Custom include target extracted from ~/.config/niri/config.kdl
+    5. ~/balonixOS/settings/monitors.kdl (if Balonix environment)
     6. Default: ~/.config/niri/monitors.kdl
     """
     if custom_path:
@@ -37,22 +72,19 @@ def find_config_file(custom_path: Optional[str] = None) -> str:
 
     home = os.path.expanduser("~")
 
-    # 1. BalonixOS check
-    balonix_kdl = os.path.join(home, "balonixOS", "settings", "monitors.kdl")
-    if os.path.exists(balonix_kdl):
-        return balonix_kdl
-
-    # 2. Existing modular source/monitors.kdl
+    # 1. Existing modular ~/.config/niri/source/monitors.kdl (follow symlink if present)
     niri_source_kdl = os.path.join(home, ".config", "niri", "source", "monitors.kdl")
     if os.path.exists(niri_source_kdl):
-        return niri_source_kdl
+        resolved = os.path.realpath(niri_source_kdl)
+        if not resolved.startswith("/nix/store"):
+            return resolved
 
-    # 3. Existing ~/.config/niri/monitors.kdl
+    # 2. Existing ~/.config/niri/monitors.kdl
     niri_monitors_kdl = os.path.join(home, ".config", "niri", "monitors.kdl")
     if os.path.exists(niri_monitors_kdl):
-        return niri_monitors_kdl
+        return os.path.realpath(niri_monitors_kdl)
 
-    # 4. Check if config.kdl already references a custom include for monitors/outputs
+    # 3. Check if config.kdl already references a custom include for monitors/outputs
     niri_config = os.path.join(home, ".config", "niri", "config.kdl")
     if os.path.exists(niri_config):
         try:
@@ -63,9 +95,16 @@ def find_config_file(custom_path: Optional[str] = None) -> str:
                     inc_path = m.group(1)
                     if not os.path.isabs(inc_path):
                         inc_path = os.path.join(os.path.dirname(niri_config), inc_path)
-                    return os.path.abspath(inc_path)
+                    resolved = os.path.realpath(inc_path)
+                    if os.path.exists(resolved) and not resolved.startswith("/nix/store"):
+                        return resolved
         except Exception:
             pass
+
+    # 4. BalonixOS fallback
+    balonix_kdl = os.path.join(home, "balonixOS", "settings", "monitors.kdl")
+    if os.path.exists(balonix_kdl):
+        return balonix_kdl
 
     # 5. Standard fallback for Arch, Fedora, NixOS, etc.
     target_dir = os.path.join(home, ".config", "niri")
@@ -112,7 +151,7 @@ def ensure_include_in_niri_config(monitors_kdl_path: str) -> Optional[str]:
                 return None
         except Exception:
             pass
-        return "Notice: Your config.kdl is read-only (Nix store). Please add include \"monitors.kdl\" to your Nix configuration."
+        return 'Notice: Your config.kdl is read-only (Nix store). Please add include "monitors.kdl" to your Nix configuration.'
 
     # Case 3: Regular writable config.kdl
     try:
@@ -128,8 +167,10 @@ def ensure_include_in_niri_config(monitors_kdl_path: str) -> Optional[str]:
         ):
             return None
 
-        # Backup config.kdl before modifying
-        shutil.copyfile(niri_config, niri_config + ".bak")
+        # Backup config.kdl to ~/.cache/niri-canvas before modifying
+        cache_dir = os.path.join(home, ".cache", "niri-canvas")
+        os.makedirs(cache_dir, exist_ok=True)
+        shutil.copyfile(niri_config, os.path.join(cache_dir, "config.kdl.bak"))
 
         # Inject include at the top of the file
         include_header = f'// Automatically included by Niri Canvas\ninclude "{rel_path}"\n\n'
@@ -137,7 +178,7 @@ def ensure_include_in_niri_config(monitors_kdl_path: str) -> Optional[str]:
             f.write(include_header + content)
         return None
     except Exception as e:
-        return f"Notice: Could not automatically inject include into config.kdl ({e}). Please manually add include \"monitors.kdl\"."
+        return f'Notice: Could not automatically inject include into config.kdl ({e}). Please manually add include "monitors.kdl".'
 
 
 def get_monitors() -> List[Dict[str, Any]]:
@@ -145,7 +186,7 @@ def get_monitors() -> List[Dict[str, Any]]:
     Query Niri compositor for all connected monitors via `niri msg -j outputs`.
     Returns normalized monitor dicts.
     """
-    raw = run_cmd("niri msg -j outputs 2>/dev/null")
+    raw = run_cmd(["niri", "msg", "-j", "outputs"])
     if not raw:
         return []
 
@@ -210,20 +251,25 @@ def get_monitors() -> List[Dict[str, Any]]:
         log_w = logical.get("width")
         log_h = logical.get("height")
         if not log_w or not log_h:
-            if tf in ["90", "270"]:
+            if is_rotated_90_or_270(tf):
                 log_w = int(round(phys_h / scale_val))
                 log_h = int(round(phys_w / scale_val))
             else:
                 log_w = int(round(phys_w / scale_val))
                 log_h = int(round(phys_h / scale_val))
 
-        tf_disp = "Normal (0°)"
-        if tf == "90":
-            tf_disp = "90° (Rechts)"
-        elif tf == "180":
-            tf_disp = "180° (Überkopf)"
-        elif tf == "270":
-            tf_disp = "270° (Links)"
+        tf_norm = normalize_kdl_transform(tf)
+        tf_labels = {
+            "normal": "Normal (0°)",
+            "90": "90° (Right)",
+            "180": "180° (Inverted)",
+            "270": "270° (Left)",
+            "flipped": "Flipped (0°)",
+            "flipped-90": "Flipped 90°",
+            "flipped-180": "Flipped 180°",
+            "flipped-270": "Flipped 270°",
+        }
+        tf_disp = tf_labels.get(tf_norm, "Normal (0°)")
 
         monitors.append({
             "port": port,
@@ -310,9 +356,9 @@ def save_monitors_layout(monitors_data: List[Dict[str, Any]], custom_path: Optio
         mode = m.get("mode")
         if mode and mode != "--":
             lines.append(f'    mode "{mode}"')
-        tf = str(m.get("transform", "Normal")).strip()
-        if tf.lower() not in ["normal", "0", ""]:
-            lines.append(f'    transform "{tf}"')
+        tf_kdl = normalize_kdl_transform(str(m.get("transform", "Normal")))
+        if tf_kdl != "normal":
+            lines.append(f'    transform "{tf_kdl}"')
         scale = m.get("scale", 1.0)
         try:
             scale_f = float(scale)
@@ -327,10 +373,12 @@ def save_monitors_layout(monitors_data: List[Dict[str, Any]], custom_path: Optio
 
     kdl_content = "\n".join(lines)
 
-    # Write backup of the monitor file
+    # Store backup in ~/.cache/niri-canvas/ so we never pollute git repositories
     if os.path.exists(target_file):
         try:
-            shutil.copyfile(target_file, target_file + ".bak")
+            cache_dir = os.path.join(os.path.expanduser("~"), ".cache", "niri-canvas")
+            os.makedirs(cache_dir, exist_ok=True)
+            shutil.copyfile(target_file, os.path.join(cache_dir, "monitors.kdl.bak"))
         except Exception:
             pass
 
@@ -338,53 +386,13 @@ def save_monitors_layout(monitors_data: List[Dict[str, Any]], custom_path: Optio
         with open(target_file, "w", encoding="utf-8") as f:
             f.write(kdl_content)
     except Exception as e:
-        return False, f"Fehler beim Schreiben von {target_file}: {e}"
+        return False, f"Failed to write {target_file}: {e}"
 
     # Ensure main config.kdl includes this file (critical for non-Balonix distros)
     include_notice = ensure_include_in_niri_config(target_file)
 
-    # BalonixOS integration: also update settings/monitors.nix if present
-    home = os.path.expanduser("~")
-    nix_file = os.path.join(home, "balonixOS", "settings", "monitors.nix")
-    if os.path.exists(os.path.dirname(nix_file)):
-        nix_lines = [
-            "# BalonixOS Deklarative Monitor-Konfiguration",
-            "# Generiert durch Niri Canvas",
-            "{ config, lib, ... }:",
-            "",
-            "{",
-            "  balonix.displays = ["
-        ]
-        for m in normalized:
-            p = m.get("port", "")
-            mod = m.get("model", p)
-            md = m.get("mode", "")
-            tf = str(m.get("transform", "Normal"))
-            sc = m.get("scale", 1.0)
-            x = m.get("x", 0)
-            y = m.get("y", 0)
-            is_prim = "true" if m.get("is_primary") else "false"
-            nix_lines.append("    {")
-            nix_lines.append(f'      port = "{p}";')
-            nix_lines.append(f'      model = "{mod}";')
-            if md and md != "--":
-                nix_lines.append(f'      mode = "{md}";')
-            nix_lines.append(f'      transform = "{tf}";')
-            nix_lines.append(f'      scale = {sc};')
-            nix_lines.append(f'      x = {x};')
-            nix_lines.append(f'      y = {y};')
-            nix_lines.append(f'      primary = {is_prim};')
-            nix_lines.append("    }")
-        nix_lines.append("  ];")
-        nix_lines.append("}")
-        try:
-            with open(nix_file, "w", encoding="utf-8") as f:
-                f.write("\n".join(nix_lines) + "\n")
-        except Exception:
-            pass
-
     # Hot reload Niri
-    run_cmd("niri msg action load-config-file")
+    run_cmd(["niri", "msg", "action", "load-config-file"])
     msg = f"Successfully saved to {target_file} and reloaded Niri!"
     if include_notice:
         msg += f"\n{include_notice}"
@@ -394,22 +402,40 @@ def save_monitors_layout(monitors_data: List[Dict[str, Any]], custom_path: Optio
 def identify_monitors(monitors_data: Optional[List[Dict[str, Any]]] = None):
     """
     Send high-priority notifications to identify each monitor with its index, port, and resolution.
+    Uses safe argument lists (no shell interpolation).
     """
     if monitors_data is None:
         monitors_data = get_monitors()
 
+    if not shutil.which("notify-send"):
+        return
+
     for idx, m in enumerate(monitors_data, 1):
-        port = m.get("port", "")
-        model = m.get("model", port)
+        port = str(m.get("port", ""))
+        model = str(m.get("model", port))
         w = m.get("width", 0)
         h = m.get("height", 0)
-        tf = m.get("transform_display", "Normal")
-        hz = m.get("mode_label", "")
+        tf = str(m.get("transform_display", "Normal"))
+        hz = str(m.get("mode_label", ""))
         prim = " ★ [PRIMARY]" if m.get("is_primary") else ""
-        run_cmd(
-            f"notify-send -a 'Niri Canvas' -i 'video-display-symbolic' -t 5000 "
-            f"'Display {idx}: {port}{prim}' '{model}\n{w}×{h} • {hz} • {tf}'"
-        )
+        try:
+            subprocess.Popen(
+                [
+                    "notify-send",
+                    "-a",
+                    "Niri Canvas",
+                    "-i",
+                    "video-display-symbolic",
+                    "-t",
+                    "5000",
+                    f"Display {idx}: {port}{prim}",
+                    f"{model}\n{w}×{h} • {hz} • {tf}",
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except Exception:
+            pass
 
 
 def _get_gio_settings():
@@ -516,12 +542,17 @@ def set_font_rendering_settings(subpixel: str, hinting: str) -> Tuple[bool, str]
 """
         with open(fc_file, "w", encoding="utf-8") as f:
             f.write(fc_xml)
-        run_cmd("fc-cache -r &")
+        if shutil.which("fc-cache"):
+            subprocess.Popen(
+                ["fc-cache", "-r"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
         details.append("Fontconfig")
         success = True
     except Exception as e:
         print(f"Warning: Could not write fontconfig snippet: {e}", file=sys.stderr)
 
     if success:
-        return True, f"Font rendering updated ({', '.join(details)} synchronisiert)."
+        return True, f"Font rendering updated ({', '.join(details)} synchronized)."
     return False, "Failed to apply font rendering settings."
