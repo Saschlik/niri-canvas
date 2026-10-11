@@ -1,5 +1,6 @@
 """
 Backend for Niri Canvas: IPC communication, monitor querying, and KDL config management.
+Safe for both BalonixOS and generic Linux distributions (Arch, Fedora, Ubuntu, Debian, vanilla NixOS).
 """
 import json
 import os
@@ -22,50 +23,94 @@ def run_cmd(cmd: str) -> str:
 def find_config_file(custom_path: Optional[str] = None) -> str:
     """
     Resolve the path to the monitors KDL file.
+    Always returns a dedicated monitor configuration file (never overwrites main config.kdl).
     Order of preference:
     1. Custom path if provided
     2. ~/balonixOS/settings/monitors.kdl (if Balonix environment)
-    3. ~/.config/niri/source/monitors.kdl (if modular structure)
-    4. ~/.config/niri/monitors.kdl
-    5. ~/.config/niri/config.kdl (standard Niri config)
+    3. ~/.config/niri/source/monitors.kdl (if modular structure exists)
+    4. ~/.config/niri/monitors.kdl (if already exists)
+    5. Custom include target extracted from ~/.config/niri/config.kdl
+    6. Default: ~/.config/niri/monitors.kdl
     """
-    if custom_path and os.path.exists(custom_path):
+    if custom_path:
         return os.path.abspath(custom_path)
 
     home = os.path.expanduser("~")
 
-    # BalonixOS check
+    # 1. BalonixOS check
     balonix_kdl = os.path.join(home, "balonixOS", "settings", "monitors.kdl")
     if os.path.exists(balonix_kdl):
         return balonix_kdl
 
-    # Niri standard modular configs
+    # 2. Existing modular source/monitors.kdl
     niri_source_kdl = os.path.join(home, ".config", "niri", "source", "monitors.kdl")
     if os.path.exists(niri_source_kdl):
         return niri_source_kdl
 
+    # 3. Existing ~/.config/niri/monitors.kdl
     niri_monitors_kdl = os.path.join(home, ".config", "niri", "monitors.kdl")
     if os.path.exists(niri_monitors_kdl):
         return niri_monitors_kdl
 
+    # 4. Check if config.kdl already references a custom include for monitors/outputs
     niri_config = os.path.join(home, ".config", "niri", "config.kdl")
     if os.path.exists(niri_config):
-        # Check if config.kdl includes monitors.kdl
         try:
             with open(niri_config, "r", encoding="utf-8") as f:
                 content = f.read()
-                if 'include "monitors.kdl"' in content:
-                    return niri_monitors_kdl
-                if 'include "source/monitors.kdl"' in content:
-                    return niri_source_kdl
+                m = re.search(r'include\s+"([^"]*(?:monitor|output)[^"]*\.kdl)"', content)
+                if m:
+                    inc_path = m.group(1)
+                    if not os.path.isabs(inc_path):
+                        inc_path = os.path.join(os.path.dirname(niri_config), inc_path)
+                    return os.path.abspath(inc_path)
         except Exception:
             pass
-        return niri_config
 
-    # Default fallback
+    # 5. Standard fallback for Arch, Fedora, NixOS, etc.
     target_dir = os.path.join(home, ".config", "niri")
     os.makedirs(target_dir, exist_ok=True)
     return niri_monitors_kdl
+
+
+def ensure_include_in_niri_config(monitors_kdl_path: str):
+    """
+    Ensure that ~/.config/niri/config.kdl includes the monitors KDL file.
+    Safely injects `include "monitors.kdl"` if missing, with automatic backup.
+    """
+    home = os.path.expanduser("~")
+    niri_config = os.path.join(home, ".config", "niri", "config.kdl")
+    if not os.path.exists(niri_config):
+        return
+
+    niri_dir = os.path.dirname(niri_config)
+    try:
+        rel_path = os.path.relpath(monitors_kdl_path, niri_dir)
+    except ValueError:
+        rel_path = monitors_kdl_path
+
+    try:
+        with open(niri_config, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # Check if already included in any form
+        if (
+            f'include "{rel_path}"' in content
+            or 'include "monitors.kdl"' in content
+            or 'include "source/monitors.kdl"' in content
+            or 'include "outputs.kdl"' in content
+        ):
+            return
+
+        # Backup config.kdl before modifying
+        shutil.copyfile(niri_config, niri_config + ".bak")
+
+        # Inject include at the top of the file
+        include_header = f'// Automatically included by Niri Canvas\ninclude "{rel_path}"\n\n'
+        with open(niri_config, "w", encoding="utf-8") as f:
+            f.write(include_header + content)
+    except Exception as e:
+        print(f"Warning: Could not inject include into config.kdl: {e}", file=sys.stderr)
 
 
 def get_monitors() -> List[Dict[str, Any]]:
@@ -177,7 +222,6 @@ def get_monitors() -> List[Dict[str, Any]]:
     # Sort left to right
     monitors.sort(key=lambda m: (m.get("x", 0), m.get("y", 0), m.get("port", "")))
     if monitors:
-        # Default primary to the first display or one matching config
         monitors[0]["is_primary"] = True
 
     return monitors
@@ -201,7 +245,7 @@ def auto_align_monitors(monitors_data: List[Dict[str, Any]]) -> List[Dict[str, A
 
 def save_monitors_layout(monitors_data: List[Dict[str, Any]], custom_path: Optional[str] = None) -> Tuple[bool, str]:
     """
-    Atomically save layout to KDL config and reload Niri compositor.
+    Atomically save layout to KDL config, ensure include in config.kdl, and reload Niri compositor.
     Returns (success, message).
     """
     if not monitors_data:
@@ -256,7 +300,7 @@ def save_monitors_layout(monitors_data: List[Dict[str, Any]], custom_path: Optio
 
     kdl_content = "\n".join(lines)
 
-    # Write backup
+    # Write backup of the monitor file
     if os.path.exists(target_file):
         try:
             shutil.copyfile(target_file, target_file + ".bak")
@@ -268,6 +312,9 @@ def save_monitors_layout(monitors_data: List[Dict[str, Any]], custom_path: Optio
             f.write(kdl_content)
     except Exception as e:
         return False, f"Fehler beim Schreiben von {target_file}: {e}"
+
+    # Ensure main config.kdl includes this file (critical for non-Balonix distros)
+    ensure_include_in_niri_config(target_file)
 
     # BalonixOS integration: also update settings/monitors.nix if present
     home = os.path.expanduser("~")
@@ -310,8 +357,8 @@ def save_monitors_layout(monitors_data: List[Dict[str, Any]], custom_path: Optio
             pass
 
     # Hot reload Niri
-    reload_res = run_cmd("niri msg action load-config-file")
-    return True, f"Erfolgreich gespeichert in {target_file} und in Niri angewendet!"
+    run_cmd("niri msg action load-config-file")
+    return True, f"Erfolgreich in {target_file} gespeichert und Niri neu geladen!"
 
 
 def identify_monitors(monitors_data: Optional[List[Dict[str, Any]]] = None):
