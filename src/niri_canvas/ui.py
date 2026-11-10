@@ -16,6 +16,7 @@ from gi.repository import Gtk, Adw, Gio, GLib
 
 from .canvas import MonitorCanvas
 from .backend import (
+    kdl_quote,
     get_monitors,
     save_monitors_layout,
     auto_align_monitors,
@@ -672,10 +673,10 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
         lines = []
         for m in self.canvas.monitors:
             port = m.get("port", "")
-            lines.append(f'output "{port}" {{')
+            lines.append(f'output "{kdl_quote(port)}" {{')
             mode = m.get("mode")
             if mode and mode != "--":
-                lines.append(f'    mode "{mode}"')
+                lines.append(f'    mode "{kdl_quote(mode)}"')
             tf_kdl = normalize_kdl_transform(str(m.get("transform", "Normal")))
             if tf_kdl != "normal":
                 lines.append(f'    transform "{tf_kdl}"')

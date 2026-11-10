@@ -28,6 +28,14 @@ NIRI_TRANSFORM_MAP = {
 }
 
 
+def kdl_quote(value):
+    """Escapes a value for a KDL double-quoted string; rejects control characters."""
+    value = str(value)
+    if any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in value):
+        raise ValueError("Control characters are not allowed in KDL string values")
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
 def normalize_kdl_transform(tf: str) -> str:
     """Normalize a Niri IPC transform string to valid Niri KDL syntax."""
     key = str(tf or "Normal").strip().lower()
@@ -316,7 +324,7 @@ def auto_align_monitors(monitors_data: List[Dict[str, Any]]) -> List[Dict[str, A
     return aligned
 
 
-def save_monitors_layout(monitors_data: List[Dict[str, Any]], custom_path: Optional[str] = None) -> Tuple[bool, str]:
+def _save_monitors_layout_impl(monitors_data: List[Dict[str, Any]], custom_path: Optional[str] = None) -> Tuple[bool, str]:
     """
     Atomically save layout to KDL config, ensure include in config.kdl, and reload Niri compositor.
     Returns (success, message).
@@ -352,10 +360,10 @@ def save_monitors_layout(monitors_data: List[Dict[str, Any]], custom_path: Optio
         port = m.get("port", "")
         if not port:
             continue
-        lines.append(f'output "{port}" {{')
+        lines.append(f'output "{kdl_quote(port)}" {{')
         mode = m.get("mode")
         if mode and mode != "--":
-            lines.append(f'    mode "{mode}"')
+            lines.append(f'    mode "{kdl_quote(mode)}"')
         tf_kdl = normalize_kdl_transform(str(m.get("transform", "Normal")))
         if tf_kdl != "normal":
             lines.append(f'    transform "{tf_kdl}"')
@@ -397,6 +405,14 @@ def save_monitors_layout(monitors_data: List[Dict[str, Any]], custom_path: Optio
     if include_notice:
         msg += f"\n{include_notice}"
     return True, msg
+
+
+def save_monitors_layout(monitors_data: List[Dict[str, Any]], custom_path: Optional[str] = None) -> Tuple[bool, str]:
+    """Validates values, then writes the KDL layout. Invalid values never reach disk or Niri."""
+    try:
+        return _save_monitors_layout_impl(monitors_data, custom_path)
+    except ValueError as exc:
+        return False, f"Refused to write invalid monitor layout: {exc}"
 
 
 def identify_monitors(monitors_data: Optional[List[Dict[str, Any]]] = None):
