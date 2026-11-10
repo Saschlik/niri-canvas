@@ -106,7 +106,7 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
         # ── 1. Interactive Canvas Group ───────────────────────────────────────
         canvas_group = Adw.PreferencesGroup()
         canvas_group.set_title("Spatial Arrangement")
-        canvas_group.set_description("Drag & drop displays to arrange. Edges snap magnetically to prevent gaps.")
+        canvas_group.set_description("Drag &amp; drop displays to arrange. Edges snap magnetically to prevent gaps.")
 
         canvas_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         self.canvas = MonitorCanvas(
@@ -226,7 +226,7 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
         self.adv_tf_options = ["Normal (0°)", "90° (Right)", "180° (Inverted)", "270° (Left)"]
         self.adv_tf_values = ["Normal", "90", "180", "270"]
         self.adv_tf_row = Adw.ComboRow()
-        self.adv_tf_row.set_title("Advanced Rotation & Invert")
+        self.adv_tf_row.set_title("Advanced Rotation &amp; Invert")
         self.adv_tf_row.set_subtitle("Supports 180° ceiling or custom arm mount orientation")
         self.adv_tf_row.set_model(Gtk.StringList.new(self.adv_tf_options))
         self.adv_tf_row.connect("notify::selected", self.on_adv_tf_selected)
@@ -236,7 +236,7 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
 
         # ── 2. Hardware Video Modes & Refresh Rates ───────────────────────────
         rate_group = Adw.PreferencesGroup()
-        rate_group.set_title("Refresh Rates & Timings")
+        rate_group.set_title("Refresh Rates &amp; Timings")
         rate_group.set_description("Native hardware video modes including exact fractional refresh rates.")
 
         self.exact_mode_row = Adw.ComboRow()
@@ -256,7 +256,7 @@ class NiriCanvasWindow(Adw.ApplicationWindow):
 
         # ── 3. Typography & Subpixel Anti-Aliasing ───────────────────────────
         font_group = Adw.PreferencesGroup()
-        font_group.set_title("Font & Subpixel Anti-Aliasing")
+        font_group.set_title("Font &amp; Subpixel Anti-Aliasing")
         font_group.set_description(
             "Matches subpixel rendering to your physical LCD panel layout to eliminate colored font fringing."
         )
